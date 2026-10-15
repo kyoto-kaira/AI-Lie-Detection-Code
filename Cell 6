@@ -1,0 +1,60 @@
+
+# ============================================================
+# Cell 6：嘘つきの最終選択
+# ============================================================
+
+def select_suspect():
+
+    print("=" * 50)
+    print("最終推理：嘘をついている人物は誰？")
+    print("=" * 50)
+
+    print("\n【容疑者一覧】")
+
+    for suspect_id, suspect in game["suspects"].items():
+        print(f"{suspect_id}：{suspect['name']}（{suspect['role']}）")
+
+    print("\nこれまでの証言をもとに、嘘つきだと思う人物を選んでください。")
+    print("選択肢：A / B / C")
+
+    while True:
+
+        answer = input("\nあなたの回答：").strip().upper()
+
+        if answer in game["suspects"]:
+            break
+
+        print("入力が正しくありません。A、B、Cのいずれかを入力してください。")
+
+    # 正解はAIではなく、ゲームデータから取得
+    correct_suspect_id = next(
+        suspect_id
+        for suspect_id, suspect in game["suspects"].items()
+        if suspect["is_liar"]
+    )
+
+    selected_name = game["suspects"][answer]["name"]
+    correct_name = game["suspects"][correct_suspect_id]["name"]
+
+    print("\n" + "=" * 50)
+    print("【推理結果】")
+
+    if answer == correct_suspect_id:
+        print("正解です！")
+        print(f"{selected_name}が嘘をついていました。")
+    else:
+        print("残念、不正解です。")
+        print(f"あなたが選んだ人物：{selected_name}")
+        print(f"正解：{correct_name}")
+
+    print("=" * 50)
+
+    return {
+        "selected_suspect_id": answer,
+        "correct_suspect_id": correct_suspect_id,
+        "is_correct": answer == correct_suspect_id
+    }
+
+
+# 最終推理を開始
+game_result = select_suspect()

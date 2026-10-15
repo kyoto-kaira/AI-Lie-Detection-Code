@@ -1,0 +1,27 @@
+
+# ============================================================
+# Cell 9：ゲームの初期化・再スタート
+# ============================================================
+
+def reset_game():
+
+    global conversation_histories, game_result
+
+    # 容疑者ごとの会話履歴をリセット
+    conversation_histories = {
+        suspect_id: []
+        for suspect_id in game["suspects"]
+    }
+
+    # 前回の推理結果を削除
+    game_result = None
+
+    print("ゲームを初期化しました。")
+    print("会話履歴：クリア")
+    print("前回の推理結果：クリア")
+    print("容疑者の設定：維持")
+    print("\nCell 5から取り調べを開始してください。")
+
+
+# ゲームを最初からやり直す
+reset_game()

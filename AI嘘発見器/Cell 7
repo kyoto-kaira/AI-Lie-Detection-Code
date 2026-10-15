@@ -1,0 +1,57 @@
+
+# ============================================================
+# Cell 7：証拠の提示・推理結果の解説
+# ============================================================
+
+def show_case_feedback(game_result):
+
+    print("\n" + "=" * 55)
+    print("事件の解説と証拠")
+    print("=" * 55)
+
+    selected_id = game_result["selected_suspect_id"]
+    correct_id = game_result["correct_suspect_id"]
+
+    selected_name = game["suspects"][selected_id]["name"]
+    correct_name = game["suspects"][correct_id]["name"]
+
+    print(f"\nあなたが選んだ人物：{selected_name}")
+    print(f"正解の人物：{correct_name}")
+
+    if game_result["is_correct"]:
+        print("\n判定：正解です！")
+        print("証言と証拠の矛盾を見抜きました。")
+    else:
+        print("\n判定：不正解です。")
+        print(f"{correct_name}の証言をもう一度確認してみましょう。")
+
+    print("\n【事件の証拠】")
+
+    for evidence in game["evidence"]:
+        print(f"\n{evidence['id']}：{evidence['name']}")
+        print(evidence["description"])
+
+    print("\n【重要な矛盾】")
+
+    liar = game["suspects"][correct_id]
+
+    for lie in liar["lie"]:
+        print(f"・{correct_name}の証言：{lie}")
+
+    print("\n【解説】")
+    print(
+        "佐藤は19時から19時30分までずっとカフェにいたと証言しています。"
+    )
+    print(
+        "しかし、監視カメラの記録では、19時15分頃に佐藤らしき人物が"
+        "展示室にいたとされています。"
+    )
+    print(
+        "この証言と証拠の食い違いが、佐藤を疑う重要な手掛かりになります。"
+    )
+
+    print("\n" + "=" * 55)
+
+
+# Cell 6で保存した推理結果を使って解説を表示
+show_case_feedback(game_result)

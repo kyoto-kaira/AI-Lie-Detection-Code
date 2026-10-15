@@ -1,0 +1,83 @@
+# ==============================================================================
+# 4. ゲームAの処理「AIのウソをみやぶれ！」
+# ==============================================================================
+
+def validate_quiz(data):
+    """AIが返した問題データの形を検査し、整えた辞書を返す。おかしければ例外を出す。"""
+
+    statements = data['statements']
+    if not isinstance(statements, list) or len(statements) != 3:
+        raise ValueError('statements が3つではありません')
+
+    statements = [str(s).strip() for s in statements]
+    if any(not s for s in statements):
+        raise ValueError('空の文があります')
+
+    lie_index = int(data['lie_index'])
+    if lie_index not in (0, 1, 2):
+        raise ValueError(f'lie_index が範囲外です: {lie_index}')
+
+    explanation = str(data['explanation']).strip()
+    if not explanation:
+        raise ValueError('explanation が空です')
+
+    return {'statements': statements, 'lie_index': lie_index, 'explanation': explanation}
+
+
+def generate_quiz(theme, difficulty, avoid=None):
+    """
+    テーマとむずかしさを指定して、1問（3つの文＋正解＋解説）を作る。
+    戻り値の lie_index（正解）はサーバー側だけで保持し、画面には出さない。
+    """
+
+    difficulty_desc = DIFFICULTIES.get(difficulty, DIFFICULTIES['ふつう'])
+    avoid_list = '\n'.join(f'- {s}' for s in avoid) if avoid else '（なし）'
+
+    user_prompt = QUIZ_USER_TEMPLATE.format(
+        theme=theme,
+        difficulty_desc=difficulty_desc,
+        avoid_list=avoid_list,
+    )
+
+    data = call_llm(QUIZ_SYSTEM_PROMPT, user_prompt, validator=validate_quiz)
+
+    # AIはウソを特定の位置に置きがちなので、プログラム側で順番をシャッフルする
+    order = random.sample(range(3), 3)
+    statements = [data['statements'][i] for i in order]
+    lie_index = order.index(data['lie_index'])
+
+    return {
+        'theme': theme,
+        'difficulty': difficulty,
+        'statements': statements,
+        'lie_index': lie_index,
+        'explanation': data['explanation'],
+    }
+
+
+def check_answer(quiz, choice):
+    """プレイヤーの選択（0, 1, 2）を採点する。"""
+
+    is_correct = (choice == quiz['lie_index'])
+
+    return {
+        'is_correct': is_correct,
+        'choice': choice,
+        'lie_index': quiz['lie_index'],
+        'lie_statement': quiz['statements'][quiz['lie_index']],
+        'explanation': quiz['explanation'],
+    }
+
+
+print('ゲームAの処理を読み込みました')
+
+# --- 動作確認（APIを1回使う） --------------------------------------------------
+if RUN_SELF_TEST:
+    print('\n--- ゲームAの動作確認 ---')
+    test_quiz = generate_quiz(THEMES[0], 'ふつう')
+    for i, s in enumerate(test_quiz['statements'], start=1):
+        print(f'{i}. {s}')
+    test_result = check_answer(test_quiz, 0)
+    print(f'\n「1」をえらんだ場合: {"せいかい" if test_result["is_correct"] else "ざんねん"}')
+    print(f'ウソの文: {test_result["lie_statement"]}')
+    print(f'解説: {test_result["explanation"]}')

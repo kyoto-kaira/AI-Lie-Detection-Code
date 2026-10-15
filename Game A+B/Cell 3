@@ -1,0 +1,85 @@
+# ==============================================================================
+# 3. API呼び出し（OpenAI API版）
+# ==============================================================================
+from openai import OpenAI
+import openai
+
+# SDK側の自動再試行は切り、再試行は call_llm() の中でまとめて管理する
+client = OpenAI(api_key=API_KEY, max_retries=0)
+
+
+class LLMError(Exception):
+    """API呼び出しが最終的に失敗したことを表す例外（画面にそのまま表示できる文にする）"""
+
+
+def extract_json(text):
+    """AIの応答テキストからJSON部分を取り出して辞書に変換する。"""
+
+    text = text.strip()
+    text = re.sub(r'^```(?:json)?\s*', '', text)   # 先頭の ```json を除去
+    text = re.sub(r'\s*```$', '', text)            # 末尾の ``` を除去
+
+    start = text.find('{')
+    end = text.rfind('}')
+    if start == -1 or end == -1 or end < start:
+        raise ValueError('応答の中にJSONが見つかりません')
+
+    return json.loads(text[start:end + 1])
+
+
+def call_llm(system_prompt, user_prompt, validator=None, max_retries=MAX_RETRIES):
+    """
+    OpenAI APIに送信 → JSONを受け取り → （validatorがあれば）中身を検査して返す。
+    通信エラー・JSONの形式エラー・検査エラーのときは、待ち時間をのばしながら再試行する。
+    """
+
+    last_error = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                max_tokens=MAX_TOKENS,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+
+            response_text = response.choices[0].message.content
+            if not response_text:
+                raise ValueError('AIから空の応答が返されました')
+
+            data = extract_json(response_text)
+
+            if validator is not None:
+                data = validator(data)
+
+            return data
+
+        # 再試行しても直らないエラー（キー、権限、モデル名など）はすぐに止める
+        except (
+            openai.AuthenticationError,
+            openai.PermissionDeniedError,
+            openai.NotFoundError,
+            openai.BadRequestError,
+        ) as e:
+            print(f'[call_llm] 設定エラー: {type(e).__name__}: {e}')
+            raise LLMError(
+                'AIにつながりませんでした。APIキー、利用権限、モデル名、API設定を確認してください。'
+            ) from e
+
+        # 一時的な通信エラーや、応答形式の乱れは再試行する
+        except (openai.APIError, ValueError, KeyError, TypeError) as e:
+            last_error = e
+            print(f'[call_llm] 失敗 {attempt}/{max_retries}: {type(e).__name__}: {e}')
+            if attempt < max_retries:
+                time.sleep(2 ** (attempt - 1))   # 1秒 → 2秒 → 4秒 …
+
+    raise LLMError(
+        'AIからうまく答えがもらえませんでした。少し待ってから、もう一度ためしてね。'
+    ) from last_error
+
+
+print('OpenAI API呼び出しの準備ができました')

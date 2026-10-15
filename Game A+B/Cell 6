@@ -1,0 +1,117 @@
+# ==============================================================================
+# 6. 状態管理
+#
+# 状態（スコア・問題番号・現在の正解など）は、7の画面で gr.State に入れて使う。
+# gr.State の中身はサーバー（このColab）側だけに保存され、参加者のブラウザには
+# 送られないため、正解が見えてしまうことはない。また、参加者ごとに別々に保存される。
+# ==============================================================================
+
+# --- ゲームA -------------------------------------------------------------------
+
+def new_state_a(theme, difficulty):
+    """ゲームAの新しい状態を作る（スタートボタンを押したとき）。"""
+
+    return {
+        'theme': theme,
+        'difficulty': difficulty,
+        'score': 0,               # せいかい数
+        'question_no': 0,         # いま何問目か
+        'current_quiz': None,     # いまの問題（正解を含む。画面には出さない）
+        'answered': False,        # いまの問題に答えたか
+        'used_statements': [],    # これまでに出した文（同じ問題のくり返し防止）
+        'finished': False,        # 全問おわったか
+    }
+
+
+def next_question_a(state):
+    """次の問題を作って状態を更新する。AIの呼び出しに失敗したときは状態を変えずに例外を出す。"""
+
+    if state['question_no'] >= NUM_QUESTIONS:
+        state['finished'] = True
+        state['current_quiz'] = None
+        return state
+
+    quiz = generate_quiz(
+        state['theme'],
+        state['difficulty'],
+        avoid=state['used_statements'][-AVOID_HISTORY:],
+    )
+
+    state['current_quiz'] = quiz
+    state['question_no'] += 1
+    state['answered'] = False
+    state['used_statements'].extend(quiz['statements'])
+
+    return state
+
+
+def answer_a(state, choice):
+    """
+    プレイヤーの答えを採点して状態を更新する。
+    戻り値：(状態, 採点結果)。答えられない状況なら採点結果は None。
+    """
+
+    if state is None or state['current_quiz'] is None or state['answered']:
+        return state, None
+
+    result = check_answer(state['current_quiz'], choice)
+
+    if result['is_correct']:
+        state['score'] += 1
+
+    state['answered'] = True
+
+    if state['question_no'] >= NUM_QUESTIONS:
+        state['finished'] = True
+
+    return state, result
+
+
+def final_message_a(score):
+    """最後に表示するひとこと。"""
+
+    if score == NUM_QUESTIONS:
+        return '🏆 パーフェクト！ きみは ウソはっけん めいじんだ！'
+    if score >= NUM_QUESTIONS * 0.6:
+        return '🎉 すごい！ AIのウソを たくさん みやぶったね！'
+    if score >= 1:
+        return '👍 おしい！ もう一回ちょうせんしてみよう！'
+    return '🌱 AIのウソは手ごわかったね。つぎは きっとできるよ！'
+
+
+# --- ゲームB -------------------------------------------------------------------
+
+def new_state_b():
+    """ゲームBの新しい状態を作る。"""
+
+    return {'rounds': 0, 'player_wins': 0}
+
+
+def play_b(state, story, truth):
+    """
+    ゲームBを1回あそぶ（入力チェック → AIの推理 → 勝敗判定 → 状態更新）。
+    戻り値：(状態, 結果)。結果の 'ok' が False のときは、'message' を表示して書き直してもらう。
+    """
+
+    if state is None:
+        state = new_state_b()
+
+    ok, message, cleaned = precheck_story(story)
+    if not ok:
+        return state, {'ok': False, 'message': message}
+
+    judge = judge_story(cleaned)
+
+    if not judge['is_appropriate']:
+        return state, {'ok': False, 'message': judge['reason']}
+
+    outcome = check_result(judge, truth)
+
+    state['rounds'] += 1
+    if outcome['player_wins']:
+        state['player_wins'] += 1
+
+    return state, {'ok': True, 'story': cleaned, **outcome}
+
+
+print('状態管理の処理を読み込みました')

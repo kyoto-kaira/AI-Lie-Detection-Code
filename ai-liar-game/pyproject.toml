@@ -1,0 +1,29 @@
+[project]
+name = "ai-liar-game"
+version = "0.1.0"
+description = "AI嘘発見ゲーム：容疑者AIに質問して嘘つきを見抜く推理ゲーム"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.40",
+    "gradio>=5.0,<6",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+liar-game = "liar_game.main:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/liar_game"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

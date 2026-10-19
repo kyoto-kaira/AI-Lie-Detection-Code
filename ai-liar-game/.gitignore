@@ -1,0 +1,28 @@
+# APIキー（絶対にコミットしない）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 仮想環境
+.venv/
+
+# テスト・キャッシュ
+.pytest_cache/
+.ruff_cache/
+
+# エディタ・OS
+.vscode/
+.idea/
+.DS_Store
+
+# Gradio
+.gradio/
+flagged/
+
+# �����L���O�̋L�^
+data/ranking.json

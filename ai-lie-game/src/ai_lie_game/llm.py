@@ -53,17 +53,21 @@ def call_llm(system_prompt, user_prompt, validator=None, max_retries=config.MAX_
 
     last_error = None
 
+    request = {
+        "model": config.MODEL_NAME,
+        "max_completion_tokens": config.MAX_TOKENS,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+    if config.REASONING_EFFORT:
+        request["reasoning_effort"] = config.REASONING_EFFORT  # 推論型モデルの「考える量」
+
     for attempt in range(1, max_retries + 1):
         try:
-            response = get_client().chat.completions.create(
-                model=config.MODEL_NAME,
-                max_tokens=config.MAX_TOKENS,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
+            response = get_client().chat.completions.create(**request)
 
             response_text = response.choices[0].message.content
             if not response_text:
@@ -84,6 +88,12 @@ def call_llm(system_prompt, user_prompt, validator=None, max_retries=config.MAX_
             openai.BadRequestError,
         ) as e:
             print(f"[call_llm] 設定エラー: {type(e).__name__}: {e}")
+            if "max_tokens" in str(e):
+                print(
+                    "[call_llm] ヒント：AIが答えを書き終える前に、出力の上限に達しました。"
+                    ".env の OPENAI_REASONING_EFFORT を小さく（例：none）するか、"
+                    "OPENAI_MAX_TOKENS を大きく（例：8192）してください。"
+                )
             raise LLMError(
                 "AIにつながりませんでした。APIキー、利用権限、モデル名、API設定を確認してください。"
             ) from e
